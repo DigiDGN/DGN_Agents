@@ -1,13 +1,13 @@
-# simpleaichat
+# DGN_Agents
 
 ```py3
-from simpleaichat import AIChat
+from DGN_Agents import AIChat
 
 ai = AIChat(system="Write a fancy GitHub README based on the user-provided project name.")
-ai("simpleaichat")
+ai("DGN_Agents")
 ```
 
-simpleaichat is a Python package for easily interfacing with chat apps like ChatGPT and GPT-4 with robust features and minimal code complexity. This tool has many features optimized for working with ChatGPT as fast and as cheap as possible, but still much more capable of modern AI tricks than most implementations:
+DGN_Agents is a Python package for easily interfacing with chat apps like ChatGPT and GPT-4 with robust features and minimal code complexity. This tool has many features optimized for working with ChatGPT as fast and as cheap as possible, but still much more capable of modern AI tricks than most implementations:
 
 - Create and run chats with only a few lines of code!
 - Optimized workflows which minimize the amount of tokens used, reducing costs and latency.
@@ -18,27 +18,27 @@ simpleaichat is a Python package for easily interfacing with chat apps like Chat
 - Ability to create more complex yet clear workflows if needed, such as Agents. (Demo soon!)
 - Coming soon: more chat model support (PaLM, Claude)!
 
-Here's some fun, hackable examples on how simpleaichat works:
+Here's some fun, hackable examples on how DGN_Agents works:
 
-- Creating a [Python coding assistant](examples/notebooks/simpleaichat_coding.ipynb) without any unnecessary accompanying output, allowing 5x faster generation at 1/3rd the cost. ([Colab](https://colab.research.google.com/github/minimaxir/simpleaichat/blob/main/examples/notebooks/simpleaichat_coding.ipynb))
-- Allowing simpleaichat to [provide inline tips](examples/notebooks/chatgpt_inline_tips.ipynb) following ChatGPT usage guidelines. ([Colab](https://colab.research.google.com/github/minimaxir/simpleaichat/blob/main/examples/notebooks/chatgpt_inline_tips.ipynb))
-- Async interface for [conducting many chats](examples/notebooks/simpleaichat_async.ipynb) in the time it takes to receive one AI message. ([Colab](https://colab.research.google.com/github/minimaxir/simpleaichat/blob/main/examples/notebooks/simpleaichat_async.ipynb))
-- Create your own Tabletop RPG (TTRPG) setting and campaign by using [advanced structured data models](examples/notebooks/schema_ttrpg.ipynb). ([Colab](https://colab.research.google.com/github/minimaxir/simpleaichat/blob/main/examples/notebooks/schema_ttrpg.ipynb))
+- Creating a [Python coding assistant](examples/notebooks/simpleaichat_coding.ipynb) without any unnecessary accompanying output, allowing 5x faster generation at 1/3rd the cost. ([Colab](https://colab.research.google.com/github/DigiDGN/DGN_Agents/blob/main/examples/notebooks/simpleaichat_coding.ipynb))
+- Allowing DGN_Agents to [provide inline tips](examples/notebooks/chatgpt_inline_tips.ipynb) following ChatGPT usage guidelines. ([Colab](https://colab.research.google.com/github/DigiDGN/DGN_Agents/blob/main/examples/notebooks/chatgpt_inline_tips.ipynb))
+- Async interface for [conducting many chats](examples/notebooks/simpleaichat_async.ipynb) in the time it takes to receive one AI message. ([Colab](https://colab.research.google.com/github/DigiDGN/DGN_Agents/blob/main/examples/notebooks/simpleaichat_async.ipynb))
+- Create your own Tabletop RPG (TTRPG) setting and campaign by using [advanced structured data models](examples/notebooks/schema_ttrpg.ipynb). ([Colab](https://colab.research.google.com/github/DigiDGN/DGN_Agents/blob/main/examples/notebooks/schema_ttrpg.ipynb))
 
 ## Installation
 
-simpleaichat can be installed [from PyPI](https://pypi.org/project/simpleaichat/):
+DGN_Agents can be installed [from PyPI](https://pypi.org/project/DGN_Agents/):
 
 ```sh
-pip3 install simpleaichat
+pip3 install DGN_Agents
 ```
 
 ## Quick, Fun Demo
 
-You can demo chat-apps very quickly with simpleaichat! First, you will need to get an OpenAI API key, and then with one line of code:
+You can demo chat-apps very quickly with DGN_Agents! First, you will need to get an OpenAI API key, and then with one line of code:
 
 ```py3
-from simpleaichat import AIChat
+from DGN_Agents import AIChat
 
 AIChat(api_key="sk-...")
 ```
@@ -73,10 +73,10 @@ AIChat("Ronald McDonald", "Speak using only emoji")
 
 ![](docs/clownemoji.png)
 
-Need some socialization immediately? Once simpleaichat is installed, you can also start these chats directly from the command line!
+Need some socialization immediately? Once DGN_Agents is installed, you can also start these chats directly from the command line!
 
 ```sh
-simpleaichat
+DGN_Agents
 simpleaichat "GlaDOS"
 simpleaichat "GLaDOS" "Speak in the style of a Seinfeld monologue"
 ```
