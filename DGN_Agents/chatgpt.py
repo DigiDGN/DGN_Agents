@@ -4,7 +4,7 @@ import orjson
 from httpx import AsyncClient, Client
 from pydantic import HttpUrl
 
-from .models import ChatMessage, ChatSession
+from .models import Turn, Thread, Call
 from .utils import remove_a_key
 
 tool_prompt = """From the list of tools below:
@@ -14,11 +14,50 @@ tool_prompt = """From the list of tools below:
 {tools}"""
 
 
-class ChatGPTSession(ChatSession):
+
+class OpenAISession(Thread):
     api_url: HttpUrl = "https://api.openai.com/v1/chat/completions"
     input_fields: Set[str] = {"role", "content", "name"}
     system: str = "You are a helpful assistant."
     params: Dict[str, Any] = {"temperature": 0.7}
+
+    # Back-compat alias
+ChatGPTSession = OpenAISession
+    def _post_json(self, client, url, json, headers):
+        r = client.post(str(url), json=json, headers=headers, timeout=None)
+        return r.json()
+
+    async def _post_json_async(self, client, url, json, headers):
+        r = await client.post(str(url), json=json, headers=headers, timeout=None)
+        return r.json()
+
+    def _stream_sse(self, client, url, json, headers):
+        with client.stream("POST", str(url), json=json, headers=headers, timeout=None) as r:
+            content = []
+            for chunk in r.iter_lines():
+                if len(chunk) > 0:
+                    chunk = chunk[6:]
+                    if chunk != "[DONE]":
+                        chunk_dict = orjson.loads(chunk)
+                        delta = chunk_dict["choices"][0]["delta"].get("content")
+                        if delta:
+                            content.append(delta)
+                            yield {"delta": delta, "response": "".join(content)}
+        return "".join(content)
+
+    async def _stream_sse_async(self, client, url, json, headers):
+        content = []
+        async with client.stream("POST", str(url), json=json, headers=headers, timeout=None) as r:
+            async for chunk in r.aiter_lines():
+                if len(chunk) > 0:
+                    chunk = chunk[6:]
+                    if chunk != "[DONE]":
+                        chunk_dict = orjson.loads(chunk)
+                        delta = chunk_dict["choices"][0]["delta"].get("content")
+                        if delta:
+                            content.append(delta)
+                            yield {"delta": delta, "response": "".join(content)}
+        return "".join(content)
 
     def prepare_request(
         self,
@@ -35,22 +74,24 @@ class ChatGPTSession(ChatSession):
             "Authorization": f"Bearer {self.auth['api_key'].get_secret_value()}",
         }
 
-        system_message = ChatMessage(role="system", content=system or self.system)
+
+        system_message = Turn(role="system", content=system or self.system)
         if not input_schema:
-            user_message = ChatMessage(role="user", content=prompt)
+            user_message = Turn(role="user", content=prompt)
         else:
-            assert isinstance(
-                prompt, input_schema
-            ), f"prompt must be an instance of {input_schema.__name__}"
-            user_message = ChatMessage(
-                role="function",
-                content=prompt.model_dump_json(),
-                name=input_schema.__name__,
-            )
+            assert isinstance(prompt, input_schema), f"prompt must be an instance of {input_schema.__name__}"
+            user_message = Turn(role="function", content=prompt.model_dump_json(), name=input_schema.__name__)
+
 
         gen_params = params or self.params
+        # Prefer model_cfg if present
+        model_id = getattr(self, "model_cfg", None)
+        if model_id and hasattr(self.model_cfg, "name"):
+            model_name = self.model_cfg.name
+        else:
+            model_name = self.model
         data = {
-            "model": self.model,
+            "model": model_name,
             "messages": self.format_input_messages(system_message, user_message),
             "stream": stream,
             **gen_params,
@@ -101,33 +142,27 @@ class ChatGPTSession(ChatSession):
             prompt, system, params, False, input_schema, output_schema
         )
 
-        r = client.post(
-            str(self.api_url),
-            json=data,
-            headers=headers,
-            timeout=None,
-        )
-        r = r.json()
+
+    r = self._post_json(client, self.api_url, data, headers)
+
 
         try:
             if not output_schema:
                 content = r["choices"][0]["message"]["content"]
-                assistant_message = ChatMessage(
+                assistant_message = Turn(
                     role=r["choices"][0]["message"]["role"],
                     content=content,
-                    finish_reason=r["choices"][0]["finish_reason"],
-                    prompt_length=r["usage"]["prompt_tokens"],
-                    completion_length=r["usage"]["completion_tokens"],
-                    total_length=r["usage"]["total_tokens"],
+                    stop=r["choices"][0].get("finish_reason"),
+                    tokens={
+                        "prompt": r["usage"]["prompt_tokens"],
+                        "completion": r["usage"]["completion_tokens"],
+                        "total": r["usage"]["total_tokens"],
+                    },
                 )
                 self.add_messages(user_message, assistant_message, save_messages)
             else:
                 content = r["choices"][0]["message"]["function_call"]["arguments"]
                 content = orjson.loads(content)
-
-            self.total_prompt_length += r["usage"]["prompt_tokens"]
-            self.total_completion_length += r["usage"]["completion_tokens"]
-            self.total_length += r["usage"]["total_tokens"]
         except KeyError:
             raise KeyError(f"No AI generation: {r}")
 
@@ -146,34 +181,18 @@ class ChatGPTSession(ChatSession):
             prompt, system, params, True, input_schema
         )
 
-        with client.stream(
-            "POST",
-            str(self.api_url),
-            json=data,
-            headers=headers,
-            timeout=None,
-        ) as r:
-            content = []
-            for chunk in r.iter_lines():
-                if len(chunk) > 0:
-                    chunk = chunk[6:]  # SSE JSON chunks are prepended with "data: "
-                    if chunk != "[DONE]":
-                        chunk_dict = orjson.loads(chunk)
-                        delta = chunk_dict["choices"][0]["delta"].get("content")
-                        if delta:
-                            content.append(delta)
-                            yield {"delta": delta, "response": "".join(content)}
 
-        # streaming does not currently return token counts
-        assistant_message = ChatMessage(
-            role="assistant",
-            content="".join(content),
-        )
+        content = []
+        for delta in self._stream_sse(client, self.api_url, data, headers):
+            if "delta" in delta:
+                content.append(delta["delta"])
+                yield delta
 
+        assistant_message = Turn(role="assistant", content="".join(content))
         self.add_messages(user_message, assistant_message, save_messages)
-
         return assistant_message
 
+    # LEGACY tool router (logit_bias)
     def gen_with_tools(
         self,
         prompt: str,
@@ -258,33 +277,27 @@ class ChatGPTSession(ChatSession):
             prompt, system, params, False, input_schema, output_schema
         )
 
-        r = await client.post(
-            str(self.api_url),
-            json=data,
-            headers=headers,
-            timeout=None,
-        )
-        r = r.json()
+
+    r = await self._post_json_async(client, self.api_url, data, headers)
+
 
         try:
             if not output_schema:
                 content = r["choices"][0]["message"]["content"]
-                assistant_message = ChatMessage(
+                assistant_message = Turn(
                     role=r["choices"][0]["message"]["role"],
                     content=content,
-                    finish_reason=r["choices"][0]["finish_reason"],
-                    prompt_length=r["usage"]["prompt_tokens"],
-                    completion_length=r["usage"]["completion_tokens"],
-                    total_length=r["usage"]["total_tokens"],
+                    stop=r["choices"][0].get("finish_reason"),
+                    tokens={
+                        "prompt": r["usage"]["prompt_tokens"],
+                        "completion": r["usage"]["completion_tokens"],
+                        "total": r["usage"]["total_tokens"],
+                    },
                 )
                 self.add_messages(user_message, assistant_message, save_messages)
             else:
                 content = r["choices"][0]["message"]["function_call"]["arguments"]
                 content = orjson.loads(content)
-
-            self.total_prompt_length += r["usage"]["prompt_tokens"]
-            self.total_completion_length += r["usage"]["completion_tokens"]
-            self.total_length += r["usage"]["total_tokens"]
         except KeyError:
             raise KeyError(f"No AI generation: {r}")
 
@@ -303,30 +316,14 @@ class ChatGPTSession(ChatSession):
             prompt, system, params, True, input_schema
         )
 
-        async with client.stream(
-            "POST",
-            str(self.api_url),
-            json=data,
-            headers=headers,
-            timeout=None,
-        ) as r:
-            content = []
-            async for chunk in r.aiter_lines():
-                if len(chunk) > 0:
-                    chunk = chunk[6:]  # SSE JSON chunks are prepended with "data: "
-                    if chunk != "[DONE]":
-                        chunk_dict = orjson.loads(chunk)
-                        delta = chunk_dict["choices"][0]["delta"].get("content")
-                        if delta:
-                            content.append(delta)
-                            yield {"delta": delta, "response": "".join(content)}
 
-        # streaming does not currently return token counts
-        assistant_message = ChatMessage(
-            role="assistant",
-            content="".join(content),
-        )
+        content = []
+        async for delta in self._stream_sse_async(client, self.api_url, data, headers):
+            if "delta" in delta:
+                content.append(delta["delta"])
+                yield delta
 
+        assistant_message = Turn(role="assistant", content="".join(content))
         self.add_messages(user_message, assistant_message, save_messages)
 
     async def gen_with_tools_async(

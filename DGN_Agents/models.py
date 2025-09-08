@@ -90,3 +90,7 @@ class ChatSession(BaseModel):
         elif self.save_messages:
             self.messages.append(user_message)
             self.messages.append(assistant_message)
+
+# Aliases for new openai module compatibility
+Thread = ChatSession
+Turn = ChatMessage
