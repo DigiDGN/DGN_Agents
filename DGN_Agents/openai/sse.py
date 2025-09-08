@@ -8,6 +8,8 @@ def stream_sse(client: Client, url: str, payload: Dict[str, Any], headers: Dict[
         for line in r.iter_lines():
             if not line:
                 continue
+            if not line.startswith("data: "):
+                continue  # skip non-data lines
             line = line[6:]  # strip 'data: '
             if line == "[DONE]":
                 break
@@ -23,6 +25,8 @@ async def stream_sse_async(client: AsyncClient, url: str, payload: Dict[str, Any
         async for line in r.aiter_lines():
             if not line:
                 continue
+            if not line.startswith("data: "):
+                continue  # skip non-data lines
             line = line[6:]
             if line == "[DONE]":
                 break

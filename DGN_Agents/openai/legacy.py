@@ -1,2 +1,7 @@
-# legacy logit-bias tool router (unchanged)
-# This file should be filled with the legacy tool router code as needed.
+
+# legacy logit-bias tool router (stub)
+def gen_with_tools(*args, **kwargs):
+	raise NotImplementedError("Legacy logit-bias tool router not loaded.")
+
+async def gen_with_tools_async(*args, **kwargs):
+	raise NotImplementedError("Legacy logit-bias tool router not loaded.")

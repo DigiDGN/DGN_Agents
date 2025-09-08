@@ -2,7 +2,7 @@ from typing import Any, Dict, Tuple
 import orjson
 from DGN_Agents.models import Turn
 
-def parse_completion(r: Dict[str, Any], output_schema: Any = None) -> Tuple[str, Turn]:
+def parse_completion(r: Dict[str, Any], output_schema: Any = None) -> Tuple[Any, Optional[Turn]]:
     if not output_schema:
         choice = r["choices"][0]
         msg = choice["message"]
@@ -25,4 +25,4 @@ def parse_completion(r: Dict[str, Any], output_schema: Any = None) -> Tuple[str,
         return content, t
     else:
         args = r["choices"][0]["message"]["function_call"]["arguments"]
-        return orjson.loads(args), None
+    return orjson.loads(args), None

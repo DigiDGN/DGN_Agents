@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from DGN_Agents.models import Thread, Turn
 from .schemas import schema_to_function
 
-def build_messages(thread: Thread, system: Optional[str], prompt: str, input_schema: Any = None) -> Tuple[List[Dict, ], Turn]:
+def build_messages(thread: Thread, system: Optional[str], prompt: str, input_schema: Any = None) -> Tuple[List[Dict[str, Any]], Turn]:
     system_turn = Turn(role="system", content=system or thread.system)
     if not input_schema:
         user_turn = Turn(role="user", content=prompt)
